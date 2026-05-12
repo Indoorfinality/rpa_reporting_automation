@@ -87,8 +87,8 @@ def do_login(page: Page, config: Config) -> None:
     except PWTimeout:
         logger.warning("Network did not fully settle — continuing anyway.")
 
-    # for home DOM to render
-    page.wait_for_timeout(1000)
+    # Give the home page extra time to fully stabilize after login
+    page.wait_for_timeout(10000)
 
     # confirm login
     current_url = page.url

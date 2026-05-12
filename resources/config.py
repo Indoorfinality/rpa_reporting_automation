@@ -19,6 +19,11 @@ class Config:
     sel_password: str     = 'input#TypeName'
     sel_login_btn: str    = 'button#add'
 
+
+    #DASHBOARD PAGE SELECTORS
+    sel_home_link: str    = 'a[href="/Dashboard.aspx"]'  # Primary selector (link)
+    sel_home_btn: str     = 'span.glyphicon-home'  # Fallback selector (icon span)
+
     #HOME PAGE
     home_url: str         = "http://172.16.0.37:805/Home.aspx"
     sel_logged_in: str    = 'h4:has-text("Welcome To Social Security Fund")' 

@@ -5,6 +5,7 @@ from playwright.sync_api import sync_playwright
 
 from resources.config import Config
 from actions.login import do_login
+from actions.dashboard_navigation import click_home
 
 def main():
     #Logging setup
@@ -54,11 +55,28 @@ def main():
         page = context.new_page()
 
         try:
-            do_login(page, config)
+            #Login
+            logger.info("─" * 45)
+            logger.info("STEP 1 — LOGIN")
+            logger.info("─" * 45)
 
+            do_login(page, config)
             logger.info("Login successful! Closing browser.")
             logger.info("Pausing 5 seconds to check the browser window...")
             page.wait_for_timeout(5000)
+
+            #Click home
+            logger.info("─" * 45)
+            logger.info("STEP 2 — CLICK HOME BUTTON")
+            logger.info("─" * 45)
+            click_home(page, config)
+            logger.success("=" * 45)
+            logger.success("ALL STEPS COMPLETE")
+            logger.success("=" * 45)
+
+
+           
+            
         except Exception as exc:
             logger.error(f"Login failed: {exc}")
         finally:
