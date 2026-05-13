@@ -2,6 +2,8 @@ from loguru import logger
 from playwright.sync_api import Page, Dialog, TimeoutError as PWTimeout
 import time
 from resources.config import Config
+from utils.dashboard_loaded_checker import check_dashboard_loaded
+
 
 def click_home(page: Page, config: Config) -> None:
     "Clicks the home button and waits for the new dashboard page to load"
@@ -91,10 +93,11 @@ def click_home(page: Page, config: Config) -> None:
         logger.info(f"  [{mins}m {secs}s] Checking dashboard... "
             f"| Popups dismissed: {popup_count['n']}")
         
-        loaded = _check_dashboard_loaded(page)
+        loaded = check_dashboard_loaded(page)
 
         if loaded:
             dashboard_loaded = True
+            page.wait_for_timeout(10000)
             logger.success(
                 f"Dashboard fully loaded! "
                 f"Time: {mins}m {secs}s | "
@@ -116,55 +119,6 @@ def click_home(page: Page, config: Config) -> None:
         f"  Popups handled : {popup_count['n']}\n"
         f"  Data loaded    : {dashboard_loaded}"
     )
-
-def _check_dashboard_loaded(page: Page) -> bool:
-    """Returns True only when table tbody rows are populated with actual data."""
-    
-    try:
-       result = page.evaluate("""
-            () => {
-                // ── Check: Knockout data must be bound ───
-                // Look for tbody rows with actual text content.
-                // If any table has data rows, loading is done.
-                const tbodies = document.querySelectorAll('table tbody');
-                let totalRows = 0;
-                let populatedRows = 0;
-
-                for (const tbody of tbodies) {
-                    const rows = tbody.querySelectorAll('tr');
-                    totalRows += rows.length;
-                    for (const row of rows) {
-                        const text = row.innerText.trim();
-                        if (text.length > 0) {
-                            populatedRows++;
-                        }
-                    }
-                }
-
-                if (totalRows === 0) {
-                    return { loaded: false, reason: 'No table rows found yet (DOM not ready)' };
-                }
-
-                if (populatedRows === 0) {
-                    return {
-                        loaded: false,
-                        reason: `Tables found (${totalRows} rows) but all empty — data binding in progress`
-                    };
-                }
-
-                return {
-                    loaded: true,
-                    reason: `Table populated — ${populatedRows}/${totalRows} rows have data`
-                };
-            }
-        """)
-       
-       logger.debug(f"Dashboard check result: {result['reason']}")
-       return result["loaded"]
-    except Exception as exc:
-        logger.error(f"Error during dashboard load check: {exc}")
-        return False
-    
 
 
     

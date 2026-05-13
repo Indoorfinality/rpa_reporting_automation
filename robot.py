@@ -6,6 +6,7 @@ from playwright.sync_api import sync_playwright
 from resources.config import Config
 from actions.login import do_login
 from actions.dashboard_navigation import click_home
+from actions.calendar import calender_search
 
 def main():
     #Logging setup
@@ -70,12 +71,17 @@ def main():
             logger.info("STEP 2 — CLICK HOME BUTTON")
             logger.info("─" * 45)
             click_home(page, config)
+
+            #Date select and search
+            logger.info("─" * 50)
+            logger.info("STEP 3 — SELECT YESTERDAY & SEARCH")
+            logger.info("─" * 50)
+            calender_search(page, config)
+
+
             logger.success("=" * 45)
             logger.success("ALL STEPS COMPLETE")
             logger.success("=" * 45)
-
-
-           
             
         except Exception as exc:
             logger.error(f"Login failed: {exc}")
