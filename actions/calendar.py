@@ -9,7 +9,7 @@ from utils.dashboard_loaded_checker import check_dashboard_loaded
 def calender_search(page: Page, config: Config) -> None:
     logger.info("Clicking To Date...")
 
-    #Open To Date calendar 
+    # Open To Date calendar
     try:
         to_date = page.locator("#txtToDate")
         to_date.wait_for(state="visible", timeout=config.timeout)
@@ -34,12 +34,11 @@ def calender_search(page: Page, config: Config) -> None:
         page.screenshot(path="logs/error_calendar_open.png", full_page=True)
         raise RuntimeError(f"Could not open To Date calendar: {e}")
 
-    #  Click yesterday
+    # Click yesterday
     logger.info("Finding today's cell and clicking the day before it...")
     _click_yesterday(page)
 
-# Register popup handler BEFORE clicking search
-    
+    # Register popup handler BEFORE clicking search
     popup_count = {"n": 0}
 
     def handle_popup(dialog: Dialog) -> None:
@@ -54,7 +53,7 @@ def calender_search(page: Page, config: Config) -> None:
     page.on("dialog", handle_popup)
     logger.debug("Popup handler registered before search click.")
 
-    #  Click Search
+    # Click Search
     logger.info("Clicking Search button...")
     search_btn = page.locator("#btnView")
     search_btn.wait_for(state="visible", timeout=config.timeout)
@@ -65,7 +64,7 @@ def calender_search(page: Page, config: Config) -> None:
         search_btn.click(timeout=300000, no_wait_after=True)
     logger.info(f"Search clicked. Waiting for Report.ashx response... ({report_response.value.status})")
 
-    #  Wait for results
+    # Wait for results
     _wait_for_results(page, config, popup_count)
 
 
@@ -90,37 +89,93 @@ def _click_yesterday(page: Page) -> None:
                     return { success: false, reason: 'ToDate calendar box not visible' };
                 }
 
-                // Find today (yellow cell)
+                // Find today (highlighted cell)
                 const todayCell = calBox.querySelector('.ndp-selected')
                                 || calBox.querySelector('td.ndp-selected');
                 if (!todayCell) {
                     return { success: false, reason: 'ndp-selected (today) not found' };
                 }
 
-                // All cells in this calendar
+                // Walk backwards from today — first real date link = yesterday
                 const allCells = Array.from(calBox.querySelectorAll('td'));
                 const todayIndex = allCells.indexOf(todayCell);
                 if (todayIndex < 0) {
                     return { success: false, reason: 'today index not found' };
                 }
 
-                // Walk backwards — first cell with a date link = yesterday
                 for (let i = todayIndex - 1; i >= 0; i--) {
                     const link = allCells[i].querySelector('a[onclick*="setSelectedDay"]');
                     if (link) {
                         link.click();
-                        return { success: true, reason: link.getAttribute('onclick') };
+                        return { success: true, reason: link.getAttribute('onclick'), wentToPrevMonth: false };
                     }
                 }
-                return { success: false, reason: 'No date cell found before today' };
+
+                // No date cell found before today — today is the 1st of the month.
+                // Navigate to the previous month via the prev arrow button.
+                const prevBtn = calBox.querySelector('a#prev[onclick]');
+                if (!prevBtn) {
+                    return { success: false, reason: 'Prev month button not found' };
+                }
+                prevBtn.click();
+                return { success: true, reason: 'Navigated to previous month', wentToPrevMonth: true };
             }
         """)
 
-        if result["success"]:
+        if not result["success"]:
+            raise RuntimeError(f"Could not click yesterday: {result['reason']}")
+
+        if result.get("wentToPrevMonth"):
+            # Wait for calendar DOM to re-render with previous month
+            logger.info("Today is the 1st of the month — navigated to previous month. Selecting last date...")
+            page.wait_for_timeout(800)
+
+            # Now pick the last day of the previous month
+            last_day_result = page.evaluate("""
+                () => {
+                    // Re-locate the ToDate calendar box after re-render
+                    const boxes = document.querySelectorAll('#ndp-nepali-box');
+                    let calBox = null;
+                    for (const box of boxes) {
+                        const target = box.querySelector('#ndp-target-id');
+                        if (target && target.innerText.trim() === 'txtToDate') {
+                            const s = window.getComputedStyle(box);
+                            if (s.display !== 'none' && s.visibility !== 'hidden') {
+                                calBox = box;
+                                break;
+                            }
+                        }
+                    }
+                    if (!calBox) {
+                        return { success: false, reason: 'Calendar box not found after prev month nav' };
+                    }
+
+                    // Grab all valid (non-disabled) date links and click the last one
+                    const allLinks = Array.from(
+                        calBox.querySelectorAll('a[onclick*="setSelectedDay"]')
+                    );
+                    if (allLinks.length === 0) {
+                        return { success: false, reason: 'No date links found in previous month' };
+                    }
+
+                    // Last link in DOM order = last day of the month
+                    const lastLink = allLinks[allLinks.length - 1];
+                    lastLink.click();
+                    return { success: true, reason: lastLink.getAttribute('onclick') };
+                }
+            """)
+
+            if last_day_result["success"]:
+                logger.info(f"Last day of previous month selected — {last_day_result['reason']}")
+                page.wait_for_timeout(500)
+            else:
+                raise RuntimeError(
+                    f"Could not select last day of previous month: {last_day_result['reason']}"
+                )
+
+        else:
             logger.info(f"Yesterday selected — {result['reason']}")
             page.wait_for_timeout(500)
-        else:
-            raise RuntimeError(f"Could not click yesterday: {result['reason']}")
 
     except RuntimeError:
         raise

@@ -34,4 +34,7 @@ class Config:
     #Output
     output_dir: str = "output"
 
+    #Master template
+    master_template: str = os.getenv("MASTER_TEMPLATE", "Master.xlsx")
+
     popup_recovery_ms: int = 5000

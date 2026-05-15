@@ -7,6 +7,7 @@ from resources.config import Config
 from actions.login import do_login
 from actions.dashboard_navigation import click_home
 from actions.calendar import calender_search
+from actions.table_extractor import extract_tables
 
 def main():
     #Logging setup
@@ -77,7 +78,12 @@ def main():
             logger.info("STEP 3 — SELECT YESTERDAY & SEARCH")
             logger.info("─" * 50)
             calender_search(page, config)
-
+            
+            #table extraction and CSV export
+            logger.info("─" * 50)
+            logger.info("STEP 4 — EXTRACT TABLES TO CSV")
+            logger.info("─" * 50)
+            extract_tables(page, config)
 
             logger.success("=" * 45)
             logger.success("ALL STEPS COMPLETE")
