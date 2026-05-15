@@ -7,45 +7,45 @@ from bs4 import BeautifulSoup
 from typing import List
 from resources.config import Config
 
-def extract_tables(page: Page, config: Config) -> None:
-    os.makedirs(config.output_dir, exist_ok=True)
+def extract_tables(page: Page, config: Config) -> str:
+    # Save CSVs into a date-specific folder under the configured output dir
+    previous_date = (date.today() - timedelta(days=1)).strftime("%Y-%m-%d")
+    dated_output_dir = os.path.join(config.output_dir, previous_date)
+    os.makedirs(dated_output_dir, exist_ok=True)
 
-    previous_date = (date.today() - timedelta(days=1)).strftime("%Y-%m-%d") 
-
-    #get full page HTML at once
+    # get full page HTML at once
     logger.info("Reading page HTML...")
     html = page.content()
     soup = BeautifulSoup(html, "lxml")
 
-    #Claim Status
-
+    # Claim Status
     logger.info("Extracting: Claim Status...")
     claim_rows = _extract_by_tbody_bind(soup, "ClaimStatusSummaries")
     _save_csv(
         claim_rows,
-        os.path.join(config.output_dir, f"{previous_date}_claim_status.csv"),
+        os.path.join(dated_output_dir, f"{previous_date}_claim_status.csv"),
         "Claim Status")
-    
-    #Registrations State Wise
-    logger.info("Extracting: Registrations State Wise...")
 
+    # Registrations State Wise
+    logger.info("Extracting: Registrations State Wise...")
     registration_rows = _extract_by_id(soup, "stateWiseReg")
     _save_csv(
         registration_rows,
-        os.path.join(config.output_dir, f"{previous_date}_registrations_state_wise.csv"),
+        os.path.join(dated_output_dir, f"{previous_date}_registrations_state_wise.csv"),
         "Registrations State Wise"
     )
 
-    #Collections
+    # Collections
     logger.info("Extracting: Collections...")
     collection_rows = _extract_by_tbody_bind(soup, "Collections")
     _save_csv(
         collection_rows,
-        os.path.join(config.output_dir, f"{previous_date}_collections.csv"),
+        os.path.join(dated_output_dir, f"{previous_date}_collections.csv"),
         "Collections"
     )
 
-    logger.success(f"All 3 CSVs saved in: {config.output_dir}/")
+    logger.success(f"All 3 CSVs saved in: {dated_output_dir}/")
+    return previous_date
 
 
 

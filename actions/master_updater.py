@@ -61,20 +61,20 @@ def update_master_from_csvs(config: Config, date_str: str) -> str:
     wb = load_workbook(config.master_template)
     ws = wb["Sheet1"]
 
-    # 1. Collections: Skip header row; write to V1:Y36
+    #Collections: Skip header row; write to V1:Y36
     collections_rows = _read_csv(collections_csv)[1:]
     _clear_range(ws, "V1:Y36")
     _write_rows(ws, 1, 22, collections_rows)
     logger.info(f"Collections: {len(collections_rows)} rows written to V1:Y36")
 
-    # 2. Registrations: Skip title row, header row, and last summary row; write to K2:T15
+    #Registrations: Skip title row, header row, and last summary row; write to K2:T15
     all_reg_rows = _read_csv(registrations_csv)
     reg_data_rows = all_reg_rows[2:-1]
     _clear_range(ws, "K2:T15")
     _write_rows(ws, 2, 11, reg_data_rows)
     logger.info(f"Registrations: {len(reg_data_rows)} rows written to K2:T15")
 
-    # 3. Claim status: Write all rows to V37:AA47
+    #Claim status: Write all rows to V37:AA47
     claim_rows = _read_csv(claim_csv)
     _clear_range(ws, "V37:AA47")
     _write_rows(ws, 37, 22, claim_rows)

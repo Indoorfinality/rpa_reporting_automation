@@ -8,6 +8,7 @@ from actions.login import do_login
 from actions.dashboard_navigation import click_home
 from actions.calendar import calender_search
 from actions.table_extractor import extract_tables
+from actions.master_updater import update_master_from_csvs
 
 def main():
     #Logging setup
@@ -83,7 +84,13 @@ def main():
             logger.info("─" * 50)
             logger.info("STEP 4 — EXTRACT TABLES TO CSV")
             logger.info("─" * 50)
-            extract_tables(page, config)
+            date_str = extract_tables(page, config)
+
+            # Update master from the extracted CSVs
+            logger.info("─" * 50)
+            logger.info("STEP 5 — UPDATE MASTER EXCEL")
+            logger.info("─" * 50)
+            update_master_from_csvs(config, date_str)
 
             logger.success("=" * 45)
             logger.success("ALL STEPS COMPLETE")

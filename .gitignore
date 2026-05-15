@@ -20,6 +20,9 @@ Thumbs.db
 # Logs
 *.log
 
+# Output files
+output/
+
 # Build files
 dist/
 build/
