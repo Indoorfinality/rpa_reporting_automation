@@ -1,8 +1,14 @@
 import csv
 import os
+import shutil
 from loguru import logger
-from openpyxl import load_workbook
 from resources.config import Config
+
+
+try:
+    import xlwings as xw
+except Exception:  
+    xw = None
 
 
 def _read_csv(file_path: str) -> list:
@@ -39,7 +45,9 @@ def _write_rows(ws, start_row: int, start_col: int, rows: list) -> None:
 
 
 def update_master_from_csvs(config: Config, date_str: str) -> str:
-    """Update the master template using CSVs for the given date and save a dated copy."""
+    """Update the master template using CSVs for the given date and save a dated copy.
+    The output file is created by copying the template first, then editing the copy in Excel 
+    """
     dated_output_dir = os.path.join(config.output_dir, date_str)
     collections_csv = os.path.join(dated_output_dir, f"{date_str}_collections.csv")
     registrations_csv = os.path.join(dated_output_dir, f"{date_str}_registrations_state_wise.csv")
@@ -58,29 +66,48 @@ def update_master_from_csvs(config: Config, date_str: str) -> str:
     if not os.path.exists(config.master_template):
         raise FileNotFoundError(f"Master template not found: {config.master_template}")
 
-    wb = load_workbook(config.master_template)
-    ws = wb["Sheet1"]
+    output_file = os.path.join(dated_output_dir, f"{date_str}_master.xlsx")
+    shutil.copy2(config.master_template, output_file)
 
-    #Collections: Skip header row; write to V1:Y36
     collections_rows = _read_csv(collections_csv)[1:]
-    _clear_range(ws, "V1:Y36")
-    _write_rows(ws, 1, 22, collections_rows)
-    logger.info(f"Collections: {len(collections_rows)} rows written to V1:Y36")
-
-    #Registrations: Skip title row, header row, and last summary row; write to K2:T15
     all_reg_rows = _read_csv(registrations_csv)
     reg_data_rows = all_reg_rows[2:-1]
-    _clear_range(ws, "K2:T15")
-    _write_rows(ws, 2, 11, reg_data_rows)
-    logger.info(f"Registrations: {len(reg_data_rows)} rows written to K2:T15")
-
-    #Claim status: Write all rows to V37:AA47
     claim_rows = _read_csv(claim_csv)
-    _clear_range(ws, "V37:AA47")
-    _write_rows(ws, 37, 22, claim_rows)
-    logger.info(f"Claim status: {len(claim_rows)} rows written to V37:AA47")
 
-    output_file = os.path.join(dated_output_dir, f"{date_str}_master.xlsx")
-    wb.save(output_file)
+    if xw is None:
+        raise RuntimeError(
+            "xlwings is required to preserve images when updating the master. "
+            "Install it and ensure Microsoft Excel is available."
+        )
+
+    app = None
+    try:
+        app = xw.App(visible=False)
+        wb = app.books.open(output_file)
+        try:
+            ws = wb.sheets["Sheet1"]
+
+            ws.range("V1:Y36").clear_contents()
+            if collections_rows:
+                ws.range("V1").value = [[_coerce(v) for v in row] for row in collections_rows]
+            logger.info(f"Collections: {len(collections_rows)} rows written to V1:Y36")
+
+            ws.range("K2:T15").clear_contents()
+            if reg_data_rows:
+                ws.range("K2").value = [[_coerce(v) for v in row] for row in reg_data_rows]
+            logger.info(f"Registrations: {len(reg_data_rows)} rows written to K2:T15")
+
+            ws.range("V37:AA47").clear_contents()
+            if claim_rows:
+                ws.range("V37").value = [[_coerce(v) for v in row] for row in claim_rows]
+            logger.info(f"Claim status: {len(claim_rows)} rows written to V37:AA47")
+
+            wb.save()
+        finally:
+            wb.close()
+    finally:
+        if app is not None:
+            app.quit()
+
     logger.success(f"Master updated: {output_file}")
     return output_file
